@@ -1,0 +1,436 @@
+---
+title: "ESTUDO DO COVID"
+output: html_notebook
+---
+#REFERENCIA DA BASE DOS DADOS
+https://opendatasus.saude.gov.br/dataset/srag-2020
+
+#DATA DA ULTIMA ATULIZAÇÃO : 29/11/2022
+-ARQUIVO --> SUBSTITUIR ARQ PELO MAIS RECENTE
+-REORGANIZAR OS GRAFICOS E SERIES
+
+
+#BIBLIOTECAS
+```{r}
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(scales)
+library(lattice)
+```
+
+
+```{r}
+#importa dados, string vazio como NA, string como fatores
+#arquivo = file.choose()
+df = read.csv("INFLUD20-17-10-2022Reduzido.csv",
+                 sep = ";",
+                 na.strings="",
+                 stringsAsFactors=TRUE)
+
+```
+
+
+```{r}
+#ANALISANDO A BASE DE DADOS
+#EXCLUINDO COLUNAS DESNECESSARIAS PARA ANALISE
+excluir_col <- c("ID_REGIONA", "CO_REGIONA", "CO_MUN_NOT", "CO_UNI_NOT", "NM_MAE_PAC",
+                 "CO_MUN_RES", "CO_PAIS", "ID_RG_RESI", "CO_RG_RESI",
+                 "AVE_SUINO", "FEBRE", "TOSSE", "GARGANTA", "DISPNEIA", "DIARREIA", "VOMITO",
+                 "DESC_RESP", "SATURACAO", "OUTRO_SIN", "OUTRO_DES", "PUERPERA", "CARDIOPATI",
+                 "HEMATOLOGI","DIABETES", "NEUROLOGIC", "PNEUMOPATI", "RENAL", "OUT_MORBI",
+                 "SIND_DOWN", "HEPATICA", "ASMA", "IMUNODEPRE", "OBESIDADE", "OBES_IMC",
+                 "MORB_DESC", "VACINA", "DT_UT_DOSE", "MAE_VAC", "DT_VAC_MAE", "M_AMAMENTA",
+                 "DT_DOSEUNI", "DT_1_DOSE", "DT_2_DOSE", "ANTIVIRAL", "TP_ANTIVIR", "OUT_ANTIV",
+                 "DT_ANTIVIR", "ID_RG_INTE", "CO_RG_INTE", "SG_UF_INTE", "ID_MN_INTE", 
+                 "CO_MU_INTE", "DT_SAIDUTI", "SUPORT_VEN", "RAIOX_RES", "RAIOX_OUT", "DT_RAIOX",
+                 "AMOSTRA", "DT_COLETA", "TP_AMOSTRA", "OUT_AMOST", "DT_ENTUTI", "PCR_RESUL",
+                 "DT_PCR", "POS_PCRFLU","TP_FLU_PCR", "PCR_FLUASU", "FLUASU_OUT","PCR_FLUBLI",
+                 "FLUBLI_OUT", "POS_PCROUT", "PCR_VSR", "PCR_PARA1", "PCR_PARA2", "PCR_PARA3",
+                 "PCR_PARA4", "PCR_ADENO", "PCR_METAP", "PCR_BOCA", "PCR_RINO", "PCR_OUTRO",
+                 "DS_PCR_OUT", "CLASSI_FIN", "CLASSI_OUT","CRITERIO", "DT_ENCERRA", "DT_DIGITA",
+                 "PCR_SARS2", "PAC_COCBO", "PAC_DSCBO", "OUT_ANIM", "DOR_ABD", "FADIGA",
+                 "PERD_OLFT", "PERD_PALA", "TOMO_RES", "DT_TOMO", "DT_RES_AN", "POS_AN_FLU",
+                 "TP_FLU_AN", "POS_AN_OUT", "AN_SARS2", "AN_VSR", "AN_PARA1", "AN_PARA2",
+                 "AN_PARA3", "AN_ADENO", "AN_OUTRO", "DS_AN_OUT", "TP_AM_SOR", "SOR_OUT",
+                 "TOMO_OUT", "RES_AN", "DT_CO_SOR", "TP_SOR", "OUT_SOR", "DT_RES", "RES_IGG",
+                 "RES_IGM", "RES_IGA", "COD_IDADE", "CS_ESCOL_N", "CS_GESTANT", "TP_TES_AN",
+                 "CS_ZONA", "SURTO_SG", "DT_RT_VGM", "DT_VGM", "PAIS_VGM", "CO_PS_VGM",
+                 "LO_PS_VGM", "HISTO_VGM", "SG_UF", "DT_NASC", "ID_UNIDADE", "ID_MN_RESI","UTI",
+                 "HOSPITAL","DT_INTERNA", "DT_EVOLUCA"
+                 )
+df = df[,!(names(df)%in% excluir_col)]
+
+#RACA
+#NA's = 9-Ignorado
+df[is.na(df$CS_RACA),]$CS_RACA = 9 
+
+#LEG_RACA
+#DUPLICANDO COLUNA RACA
+df["leg_Raca"]= df$CS_RACA
+
+#SUBSTITUI VALORES
+df[df$leg_Raca==1,]$leg_Raca = "Branca"
+df[df$leg_Raca==2,]$leg_Raca = "Preta"
+df[df$leg_Raca==3,]$leg_Raca = "Amarela"
+df[df$leg_Raca==4,]$leg_Raca = "Parda"
+df[df$leg_Raca==5,]$leg_Raca = "Indígena"
+df[df$leg_Raca==9,]$leg_Raca = "Ignorado"
+
+#ATUALIZA A FACTOR
+df$leg_Raca = factor(df$leg_Raca)
+
+#CS_SEXO
+
+#DUPLICANDO COLUNA SEXO
+df["leg_Sexo"]= df$CS_SEXO
+
+#altera a leg_Sexo para string
+df$leg_Sexo = as.character(df$leg_Sexo)
+
+#SUBSTITUI VALORES leg_Sexo
+#M-Masculino
+#F-Feminino
+#I-Ignorado
+df[df$leg_Sexo== "I",]$leg_Sexo = "Ignorado"
+df[df$leg_Sexo== "F",]$leg_Sexo = "Feminino"
+df[df$leg_Sexo== "M",]$leg_Sexo = "Masculino"
+
+#altera a leg_Sexo para factor
+df$leg_Sexo = factor(df$leg_Sexo)
+
+#NOSOCOMIAL - infecção adquirida após internação
+#1-Sim
+#2-Não
+#9-Ignorado
+df[is.na(df$NOSOCOMIAL),]$NOSOCOMIAL = 9 
+#summary(df$NOSOCOMIAL)
+#df[is.na(df$NOSOCOMIAL),]$NOSOCOMIAL
+
+#EVOLUCAO
+#1-Cura
+#2-Óbito
+#3-Óbito por outras causas
+#9-Ignorado
+df[is.na(df$EVOLUCAO),]$EVOLUCAO = 9
+```
+
+```{r}
+df[df$TP_IDADE==1|df$TP_IDADE==2,]$NU_IDADE_N = 0
+```
+
+
+```{r}
+#TP_IDADE
+#1-Dia
+#2-Mês
+#3-Ano
+#df["leg_Idade"] = df$TP_IDADE
+#summary(df$leg_Idade)
+#head(df)
+#df$leg_Idade = factor(df$leg_Idade)
+
+#leg_Idade
+#TRANSFOMANDO O leg_Idade 
+#1-Dia
+#2-Mês
+#3-Ano
+#df[df$leg_Idade==1,]$leg_Idade = "Dia"
+#df[df$leg_Idade==2,]$leg_Idade = "Mes"
+#df[df$leg_Idade==3,]$leg_Idade = "Ano"
+#df$leg_Idade = factor(df$leg_Idade)
+
+#IDADE
+#df[df$NU_IDADE_N<0,]$NU_IDADE_N
+#boxplot(df$NU_IDADE_N, outline = FALSE)
+boxplot(df$NU_IDADE_N, outline = TRUE)
+#head(df)
+
+#leg_Evolucao
+df["leg_Evolucao"] = df$EVOLUCAO
+#leg_Evolucao
+#1-Cura
+#2-Óbito
+#3- Óbito por outras causas
+#9-Ignorado
+df[df$leg_Evolucao==1,]$leg_Evolucao = "Curado"
+df[df$leg_Evolucao==2,]$leg_Evolucao = "Óbito"
+df[df$leg_Evolucao==3,]$leg_Evolucao = "Óbito por outras causas"
+df[df$leg_Evolucao==9,]$leg_Evolucao = "Ignorado"
+
+df$leg_Evolucao = factor(df$leg_Evolucao)
+```
+
+```{r}
+
+#df[is.na(df),]
+summary(df)
+boxplot(df$NU_IDADE_N, outline = TRUE)
+```
+#brincando com datas
+```{r}
+#head(df)
+#df["DataNotificacao"] = df$DT_NOTIFIC
+#df = df[,!(names(df)%in% "DataNotificação")]
+#confirmando a classe
+#class(df$DataNotificacao)
+#df$DataNotificacao = as.Date(df$DataNotificacao)
+#class(df$DataNotificacao)
+unclass(class(df$DataNotificacao))
+```
+#SERIE TEMPORAL
+1 anual
+4 trimestral
+12 mensal
+52 semana
+
+```{r}
+df_stp = ts(df, 
+            start = c(2020,1),
+            end= c(2022,12),
+            frequency = 12
+            )
+```
+
+```{r}
+plot(df_stp[,1:10])
+plot(df_stp[,11:15])
+plot(df_stp[,16:17])
+```
+
+
+```{r}
+teste = df_stp[,"SEM_NOT"]
+plot(teste)
+```
+
+
+```{r}
+library(forecast)
+autoplot(df_stp[,"EVOLUCAO"])
+
+```
+
+```{r}
+dim(df_stp)
+```
+
+```{r}
+cor(df_stp[,"EVOLUCAO"], df_stp[,"NU_IDADE_N"])
+
+```
+
+
+
+#GERANDO AMOSTRA DOS DADOS
+```{r}
+dim(df)
+```
+
+```{r}
+set.seed(2245)
+amostra = sample(c(0,1),38493, replace = TRUE, prob=c(0.7, 0.3))
+summary(as.factor(amostra))
+```
+
+```{r}
+amostradf = df[amostra==1,]
+dim(amostradf)
+```
+
+
+
+```{r}
+#teste de normalidade
+#grafico de normalidade
+qqnorm(df$NU_IDADE_N)
+qqline(df$NU_IDADE_N)
+
+```
+
+```{r}
+shapiro.test(df$NU_IDADE_N[0:5000])
+#VALOR P ACIMA DE 0,05 NÃO HÁ INDICIO DE CONFIMAÇÃO DE HIPOTESE NULA
+#p-value < 2.2e-16
+```
+
+```{r}
+#HISTOGRAMA COM LINHA DE DENSIDADE
+#hist(df$NU_IDADE, main = "")
+hist(df$SEM_PRI, main = "")
+par(new=TRUE)
+plot(density(df$SEM_PRI), xlab = "", ylab = "", axes=F, lwd=2.5)
+```
+
+```{r}
+#grafico de normalidade
+qqnorm(df$SEM_PRI)
+qqline(df$SEM_PRI)
+```
+
+
+```{r}
+
+#df[is.na(df),]
+summary(df)
+```
+#regressao linear
+```{r}
+#variavel x
+#df$NU_IDADE_N
+#eixoy varia de resposta
+#df$EVOLUCAO
+modelo = lm(EVOLUCAO~df$SEM_PRI, data=df)
+library(corrgram)
+```
+
+```{r}
+modelo
+```
+```{r}
+plot(SEM_PRI~EVOLUCAO, data=df, 
+     xlab="idade", ylab = "evolucao", 
+     main="teste")
+abline(modelo)
+```
+
+
+
+
+#IDADE
+```{r}
+#summary(df$NU_IDADE_N)
+#df[df$NU_IDADE_N>106,]$NU_IDADE_N
+#df[df$NU_IDADE_N<0,]$NU_IDADE_N
+boxplot(df$NU_IDADE_N, outline = FALSE)
+boxplot(df$NU_IDADE_N, outline = TRUE)
+#head(df)
+```
+
+```{r}
+idade = ggplot(df, aes(y = NU_IDADE_N, 
+                       x = leg_Idade,
+                       fill = leg_Idade)
+               )+
+              geom_boxplot(outlier.colour = "red"#,
+                           #outlier.shape = 1
+                           )+
+              theme_classic(base_size = 18)+
+              xlab("Grupo") + 
+              ylab("Idade")
+idade
+ggplotly(idade)
+```
+
+
+
+
+
+
+#GRAFICOS EXPLORATORIOS
+#GRAFICO TOTALIZADORES
+#- ETNIA
+```{r}
+etnia1 = ggplot(df, aes(x = leg_Raca)
+                     )+
+                    geom_bar(color ='white',
+                             fill = 'blue'
+                             )+
+                    xlab("Etnia"
+                         )+
+                    ylab("Totalizador")+
+                    #scale_x_continuous(labels = comma)+
+                    #scale_y_continuous(labels = comma)+
+                    #scale_x_continuous(labels = comma_format(big.mark = ".",
+                    #                                         decimal.mark = ",")
+                    #                   )+
+                    scale_y_continuous(labels = comma_format(big.mark = ".",
+                                                             decimal.mark = ",")
+                                       )+
+                    ggtitle("Titulo: Grupo Etnico")
+
+ggplotly(etnia1)
+
+```
+
+```{r}
+#HISTOGRAMA para ESTUDO POSTERIOR
+etnia2 = ggplot(df,aes(x = CS_RACA)
+                    )+
+                    geom_histogram(color ='black',
+                                   fill = 'blue',
+                                   bins = 30,
+                                   binwidth = 1
+                                   )+
+                    stat_bin(aes(y=..count..,label=..count..),
+                             geom="text", vjust=1
+                             )+ 
+                    theme_classic(base_size = 10
+                                  )+
+                    xlab("Grupo Etnico"
+                         )+
+                    ylab("Total")+
+                    ggtitle("Titulo: Grupo Etnico")
+
+ggplotly(etnia2)
+```
+
+#GRAFICO TOTALIZADOR - Leg Sexo
+```{r}
+sexo1 = ggplot(df, aes(x = leg_Sexo)
+                     )+
+                    geom_bar(color ='white',
+                             fill = 'blue'
+                             )+
+                    xlab("Etnia"
+                         )+
+                    ylab("Totalizador")+
+                    #scale_x_continuous(labels = comma)+
+                    #scale_y_continuous(labels = comma)+
+                    #scale_x_continuous(labels = comma_format(big.mark = ".",
+                    #                                         decimal.mark = ",")
+                    #                   )+
+                    scale_y_continuous(labels = comma_format(big.mark = ".",
+                                                             decimal.mark = ",")
+                                       )+
+                    ggtitle("Titulo: Sexo")
+
+ggplotly(sexo1)
+```
+
+```{r}
+idade = ggplot(df, aes(y = NU_IDADE_N, 
+                       x = leg_Idade,
+                       fill = leg_Idade)
+               )+
+              geom_boxplot(outlier.colour = "red"#,
+                           #outlier.shape = 1
+                           )+
+              theme_classic(base_size = 18)+
+              xlab("Grupo") + 
+              ylab("Idade")
+idade
+ggplotly(idade)
+```
+
+#nova base a para estudo
+IMPORTAÇÃO DOS DADOS
+
+REFERENCIA MULDIAL
+https://github.com/owid/covid-19-data/tree/master/public/data
+
+
+```{r}
+#importa dados, string vazio como NA, string como fatores
+#arquivo = file.choose()
+#arquivo ="C:\\Users\\Papai\\Google Drive\\5.Projetos\\R\\Covid\\owid-covid-data.csv"
+#dados = read.csv(arquivo,
+#                 sep = ",",
+#                 na.strings="",
+#                 stringsAsFactors=T)
+#TOTAL DE LINHAS/ COLUNAS: 226113 / 67
+#dim(dados)
+#head(dados)
+#colnames(dados)
+
+```
